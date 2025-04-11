@@ -10,6 +10,11 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     // 可以在这里定义自定义的查询方法，例如根据邮箱查找用户
     User findByEmail(String email);
 
+
     // 根据昵称查找用户
     User findByNickname(String nickname);
+
+
+    // Check if user with given email exists
+    boolean existsByEmail(String email);  // This is the method you're missing!
 }
