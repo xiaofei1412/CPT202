@@ -14,7 +14,4 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     // 根据昵称查找用户
     User findByNickname(String nickname);
 
-
-    // Check if user with given email exists
-    boolean existsByEmail(String email);  // This is the method you're missing!
 }

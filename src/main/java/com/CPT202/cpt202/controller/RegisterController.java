@@ -10,6 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 import java.security.NoSuchAlgorithmException;
 
@@ -24,31 +26,28 @@ public class RegisterController {
 
     // 用户注册接口
     @RequestMapping(value = "/register", method = RequestMethod.POST)
-    public String registerUser(UserRegistrationRequest request, Model model) throws NoSuchAlgorithmException, MessagingException {
+    public String registerUser(@RequestBody UserRegistrationRequest request, String inputCode, Model model) throws NoSuchAlgorithmException, MessagingException {
         try {
             // 1. 调用用户服务注册用户
             User user = userService.registerUser(request.getEmail(), request.getPassword(), request.getNickname());
 
-            // 2. 生成验证码
-            String verificationCode = generateVerificationCode();
+            // 2. 生成验证码并发送邮件
+            String generatedVerificationCode = mailService.generateVerificationCode();  // 生成验证码
+            mailService.sendVerificationEmail(request.getEmail(), generatedVerificationCode);  // 发送验证码邮件
 
-            // 3. 发送验证码邮件!!
-            mailService.sendVerificationEmail(request.getEmail(), verificationCode);
-
-            // 4. 注册成功
-            model.addAttribute("message", "注册成功！请检查您的邮箱以获取验证码。");
-            model.addAttribute("user", user);  // 将用户信息传递给视图
-            return "success";  // 注册成功后显示成功页面
+            // 3. 验证用户输入的验证码
+            if (inputCode.equals(generatedVerificationCode)) {
+                // 验证成功，激活用户账户
+                userService.activateUser(request.getEmail());  // 激活用户方法
+                model.addAttribute("message", "注册成功！账户已激活！");
+                return "welcome";  // 激活成功后跳转到欢迎页面
+            } else {
+                model.addAttribute("error", "验证码错误！");
+                return "error";  // 验证失败，返回错误页面
+            }
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             return "error";  // 出现错误时显示错误页面
         }
     }
-
-    // 生成验证码
-    private String generateVerificationCode() {
-        return String.format("%06d", (int)(Math.random() * 1000000));  // 生成6位验证码
-    }
-
 }
-

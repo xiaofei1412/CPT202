@@ -8,4 +8,6 @@ public interface IUserService {
 
     User registerUser(String email, String password, String nickname) throws NoSuchAlgorithmException;  // 注册用户
     User loginUser(String nickname, String password) throws NoSuchAlgorithmException;  // 用户登录
+
+    void activateUser(String email);  // 激活用户接口
 }

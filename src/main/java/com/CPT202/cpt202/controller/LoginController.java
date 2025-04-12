@@ -18,10 +18,10 @@ public class LoginController {
 
     // 用户登录接口
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public String loginUser(String nickname, String password, Model model) throws NoSuchAlgorithmException {
+    public String loginUser(String usernameOrEmail, String password, Model model) throws NoSuchAlgorithmException {
         try {
             // 调用 UserService 实现登录
-            User user = userService.loginUser(nickname, password);
+            User user = userService.loginUser(usernameOrEmail, password);  // 使用邮箱或昵称登录
 
             // 登录成功，返回首页或用户页面
             model.addAttribute("user", user);
