@@ -1,2 +1,3 @@
-# CPT202
-Daily Reading Tracker
+# Daily Reading Tracker
+旨在帮助用户记录和管理其日常阅读活动的基于Web的应用程序，该应用程序将采用用户身份验证，基于角色的访问控制和管理监督，以确保流畅安全的用户体验。
+域名：http://116.62.42.63
