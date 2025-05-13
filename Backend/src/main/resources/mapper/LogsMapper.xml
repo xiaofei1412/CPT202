@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.tablego.project.springboot.mapper.LogsMapper">
+
+    <select id="page" resultType="cn.tablego.project.springboot.model.Logs">
+        SELECT *
+        FROM (
+        SELECT *
+        FROM reading_logs
+        WHERE user_id = #{params.userId}
+        ) AS combined_logs
+        <where>
+            <!-- 标题模糊匹配 -->
+            <if test="params.title != null and params.title != ''">
+                AND title LIKE CONCAT('%', #{params.title}, '%')
+            </if>
+
+            <!-- 作者模糊匹配 -->
+            <if test="params.author != null and params.author != ''">
+                AND author LIKE CONCAT('%', #{params.author}, '%')
+            </if>
+
+            <!-- 状态精确匹配 -->
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+
+            <!-- 阅读时间类型条件 -->
+            <choose>
+                <when test="params.readingTimeType == 1">
+                    AND reading_time &lt;= 30
+                </when>
+                <when test="params.readingTimeType == 2">
+                    AND reading_time &gt;= 30 AND reading_time &lt;= 60
+                </when>
+                <when test="params.readingTimeType == 3">
+                    AND reading_time &gt;= 60 AND reading_time &lt;= 120
+                </when>
+                <when test="params.readingTimeType == 4">
+                    AND reading_time &gt;= 120
+                </when>
+            </choose>
+
+            <!-- 阅读日期范围 -->
+            <if test="params.startTime != null and params.endTime != null">
+                AND reading_date BETWEEN #{params.startTime} AND #{params.endTime}
+            </if>
+        </where>
+
+        <!-- 排序方式 -->
+        <choose>
+            <when test="params.sortType == 1">
+                ORDER BY created_at DESC
+            </when>
+            <when test="params.sortType == 2">
+                ORDER BY created_at ASC
+            </when>
+            <when test="params.sortType == 3">
+                ORDER BY reading_time DESC
+            </when>
+            <otherwise>
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+    </select>
+    <select id="page1" resultType="cn.tablego.project.springboot.model.Logs">
+
+        SELECT *
+        FROM reading_logs
+        <where>
+            <!-- 标题模糊匹配 -->
+            <if test="params.title != null and params.title != ''">
+                AND title LIKE CONCAT('%', #{params.title}, '%')
+            </if>
+
+            <!-- 作者模糊匹配 -->
+            <if test="params.author != null and params.author != ''">
+                AND author LIKE CONCAT('%', #{params.author}, '%')
+            </if>
+
+            <!-- 状态精确匹配 -->
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+
+            <!-- 阅读时间类型条件 -->
+            <choose>
+                <when test="params.readingTimeType == 1">
+                    AND reading_time &lt;= 30
+                </when>
+                <when test="params.readingTimeType == 2">
+                    AND reading_time &gt;= 30 AND reading_time &lt;= 60
+                </when>
+                <when test="params.readingTimeType == 3">
+                    AND reading_time &gt;= 60 AND reading_time &lt;= 120
+                </when>
+                <when test="params.readingTimeType == 4">
+                    AND reading_time &gt;= 120
+                </when>
+            </choose>
+
+            <!-- 阅读日期范围 -->
+            <if test="params.startTime != null and params.endTime != null">
+                AND reading_date BETWEEN #{params.startTime} AND #{params.endTime}
+            </if>
+        </where>
+
+        <!-- 排序方式 -->
+        <choose>
+            <when test="params.sortType == 1">
+                ORDER BY created_at DESC
+            </when>
+            <when test="params.sortType == 2">
+                ORDER BY created_at ASC
+            </when>
+            <when test="params.sortType == 3">
+                ORDER BY reading_time DESC
+            </when>
+            <otherwise>
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+    </select>
+    <select id="logs" resultType="cn.tablego.project.springboot.model.Logs">
+        SELECT *
+        FROM reading_logs
+        WHERE user_id = #{userId}
+--         AND status = 'approved'
+        <choose>
+            <!-- 查询本周的数据 -->
+            <when test="type == 1">
+                AND YEARWEEK(reading_date, 1) = YEARWEEK(CURDATE(), 1)
+            </when>
+            <!-- 查询本月的数据 -->
+            <when test="type == 2">
+                AND DATE_FORMAT(reading_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+            </when>
+            <!-- 查询本年的数据 -->
+            <when test="type == 3">
+                AND YEAR(reading_date) = YEAR(CURDATE())
+            </when>
+        </choose>
+        ORDER BY created_at DESC;
+    </select>
+    <select id="days" resultType="java.lang.Integer">
+        WITH RankedLogs AS (
+        SELECT
+        user_id,
+        reading_date,
+        LAG(reading_date) OVER (PARTITION BY user_id ORDER BY reading_date) AS prev_reading_date
+        FROM reading_logs
+        WHERE user_id = #{userId}
+        <choose>
+            <!-- 查询本周的数据 -->
+            <when test="type == 1">
+                AND YEARWEEK(reading_date, 1) = YEARWEEK(CURDATE(), 1)
+            </when>
+            <!-- 查询本月的数据 -->
+            <when test="type == 2">
+                AND DATE_FORMAT(reading_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+            </when>
+            <!-- 查询本年的数据 -->
+            <when test="type == 3">
+                AND YEAR(reading_date) = YEAR(CURDATE())
+            </when>
+        </choose>
+        ),
+        GroupedLogs AS (
+        SELECT
+        user_id,
+        reading_date,
+        SUM(CASE
+        WHEN DATEDIFF(reading_date, prev_reading_date) = 1 THEN 0
+        ELSE 1
+        END) OVER (PARTITION BY user_id ORDER BY reading_date) AS group_id
+        FROM RankedLogs
+        )
+        SELECT MAX(consecutive_days) AS max_consecutive_days
+        FROM (
+        SELECT
+        user_id,
+        COUNT(*) AS consecutive_days
+        FROM GroupedLogs
+        GROUP BY user_id, group_id
+        ) AS ConsecutiveDays;
+    </select>
+    <select id="typeMap" resultType="java.util.Map">
+        WITH ExplodedTags AS (
+        SELECT
+        user_id,
+        reading_date,
+        tag
+        FROM reading_logs,
+        JSON_TABLE(tags, '$[*]' COLUMNS (tag VARCHAR(255) PATH '$')) AS jt
+        WHERE user_id = #{userId}
+        <choose>
+            <!-- 查询本周的数据 -->
+            <when test="type == 1">
+                AND YEARWEEK(reading_date, 1) = YEARWEEK(CURDATE(), 1)
+            </when>
+            <!-- 查询本月的数据 -->
+            <when test="type == 2">
+                AND DATE_FORMAT(reading_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+            </when>
+            <!-- 查询本年的数据 -->
+            <when test="type == 3">
+                AND YEAR(reading_date) = YEAR(CURDATE())
+            </when>
+        </choose>
+        )
+        SELECT
+        tag AS `key`,
+        COUNT(*) AS `value`
+        FROM ExplodedTags
+        GROUP BY tag
+        ORDER BY `value` DESC;
+    </select>
+
+    <select id="weekMap" resultType="java.util.Map">
+        WITH WeekDays AS (
+            SELECT
+                DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL seq.seq DAY) AS reading_date
+            FROM (
+                     SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                     UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
+                 ) seq
+        )
+        SELECT
+            DAYNAME(wd.reading_date) AS `key`,
+            COALESCE(SUM(rl.reading_time), 0) AS `value`
+        FROM WeekDays wd
+                 LEFT JOIN reading_logs rl
+                           ON wd.reading_date = rl.reading_date
+                               AND rl.user_id = #{userId}
+--                                AND rl.status = 'approved'
+        GROUP BY wd.reading_date
+        ORDER BY wd.reading_date ASC;
+    </select>
+
+    <select id="monthMap" resultType="java.util.Map">
+        WITH MonthWeeks AS (
+        SELECT
+        seq.week_number,
+        DATE_ADD(DATE_SUB(CURDATE(), INTERVAL DAYOFMONTH(CURDATE()) - 1 DAY), INTERVAL (seq.week_number - 1) * 7 DAY) AS start_of_week
+        FROM (
+        SELECT 1 AS week_number UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+        ) seq
+        )
+        SELECT
+        CONCAT('Week', mw.week_number) AS `key`,
+        COALESCE(SUM(rl.reading_time), 0) AS `value`
+        FROM MonthWeeks mw
+        LEFT JOIN reading_logs rl
+        ON rl.reading_date >= mw.start_of_week
+        AND rl.reading_date &lt; DATE_ADD(mw.start_of_week, INTERVAL 7 DAY)
+        AND rl.user_id = #{userId}
+--         AND rl.status = 'approved'
+        GROUP BY mw.week_number
+        ORDER BY mw.week_number ASC;
+    </select>
+
+    <select id="yearMap" resultType="java.util.Map">
+        WITH YearMonths AS (
+        SELECT
+        seq.month_number,
+        DATE_FORMAT(DATE_ADD(MAKEDATE(YEAR(CURDATE()), 1), INTERVAL (seq.month_number - 1) MONTH), '%Y-%m-01') AS start_of_month
+        FROM (
+        SELECT 1 AS month_number UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+        UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8
+        UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
+        ) seq
+        )
+        SELECT
+        ym.month_number AS `key`,
+        COALESCE(SUM(rl.reading_time), 0) AS `value`
+        FROM YearMonths ym
+        LEFT JOIN reading_logs rl
+        ON rl.reading_date >= ym.start_of_month
+        AND rl.reading_date &lt; DATE_ADD(ym.start_of_month, INTERVAL 1 MONTH)
+        AND rl.user_id = #{userId}
+--         AND rl.status = 'approved'
+        GROUP BY ym.month_number
+        ORDER BY ym.month_number ASC;
+    </select>
+    <select id="recent7days" resultType="cn.tablego.project.springboot.model.PlatVo">
+        WITH RECURSIVE DateSeries AS (
+        SELECT CURDATE() - INTERVAL 6 DAY AS date
+        UNION ALL
+        SELECT date + INTERVAL 1 DAY
+        FROM DateSeries
+        WHERE date &lt; CURDATE()
+        )
+        SELECT
+        CONCAT(MONTH(ds.date), '/', DAY(ds.date)) AS date,
+        COALESCE(SUM(rl.reading_time), 0) AS readingCount
+        FROM
+        DateSeries ds
+        LEFT JOIN
+        reading_logs rl
+        ON
+        ds.date = rl.reading_date
+        GROUP BY
+        ds.date
+        ORDER BY
+        ds.date ASC;
+    </select>
+</mapper>

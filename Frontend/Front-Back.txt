@@ -1,0 +1,713 @@
+# 前后端对接指南
+
+## 一、对接点与准备工作
+
+### 1. 主要对接点
+在当前的阅读活动管理系统中，需要与后端对接的主要点有：
+
+- **用户认证相关**：登录、注册、退出登录、获取用户信息
+- **阅读日志相关**：获取日志列表、日志详情、创建日志、更新日志、删除日志
+- **统计数据相关**：获取阅读时间统计、阅读进度统计等
+- **消息通知相关**：获取消息列表、标记已读、删除消息
+- **管理员功能**：用户管理、内容审核等
+
+### 2. 前端准备工作
+
+- **安装HTTP客户端**：如果尚未安装，需要安装axios
+```bash
+npm install axios
+```
+
+- **创建API服务层**：在src目录下创建services文件夹，用于集中管理API请求
+
+- **环境配置**：在项目根目录创建或修改.env文件，配置API基础URL
+```
+VITE_API_BASE_URL=http://localhost:3000/api
+```
+
+## 二、API服务层实现
+
+### 1. 创建基础API服务
+
+创建 `src/services/api.js` 文件：
+
+```javascript
+import axios from 'axios'
+
+// 创建axios实例
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  timeout: 10000, // 请求超时时间
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// 请求拦截器 - 添加token到请求头
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
+    }
+    return config
+  },
+  error => Promise.reject(error)
+)
+
+// 响应拦截器 - 处理常见错误
+api.interceptors.response.use(
+  response => response.data,
+  error => {
+    // 处理401未授权错误（Token过期或无效）
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('userRole')
+      localStorage.removeItem('userInfo')
+      window.location.href = '/auth'
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default api
+```
+
+### 2. 创建用户服务
+
+创建 `src/services/userService.js` 文件：
+
+```javascript
+import api from './api'
+
+export const userService = {
+  // 用户登录
+  login(credentials) {
+    return api.post('/auth/login', credentials)
+  },
+  
+  // 用户注册
+  register(userData) {
+    return api.post('/auth/register', userData)
+  },
+  
+  // 获取用户信息
+  getUserInfo() {
+    return api.get('/user/profile')
+  },
+  
+  // 更新用户信息
+  updateUserInfo(userData) {
+    return api.put('/user/profile', userData)
+  },
+  
+  // 退出登录
+  logout() {
+    return api.post('/auth/logout')
+  }
+}
+```
+
+### 3. 创建日志服务
+
+创建 `src/services/logService.js` 文件：
+
+```javascript
+import api from './api'
+
+export const logService = {
+  // 获取日志列表
+  getLogs(params) {
+    return api.get('/logs', { params })
+  },
+  
+  // 获取日志详情
+  getLogDetail(id) {
+    return api.get(`/logs/${id}`)
+  },
+  
+  // 创建日志
+  createLog(logData) {
+    return api.post('/logs', logData)
+  },
+  
+  // 更新日志
+  updateLog(id, logData) {
+    return api.put(`/logs/${id}`, logData)
+  },
+  
+  // 删除日志
+  deleteLog(id) {
+    return api.delete(`/logs/${id}`)
+  },
+  
+  // 获取阅读统计数据
+  getStatistics() {
+    return api.get('/logs/statistics')
+  }
+}
+```
+
+## 三、修改Store文件
+
+### 1. 修改user.js
+
+需要将当前的模拟数据和逻辑替换为真实API调用：
+
+```javascript
+import { defineStore } from 'pinia'
+import { userService } from '../services/userService'
+
+export const useUserStore = defineStore('user', {
+  state: () => ({
+    token: localStorage.getItem('token') || '',
+    userInfo: JSON.parse(localStorage.getItem('userInfo')) || null,
+    role: localStorage.getItem('userRole') || '',
+  }),
+  
+  getters: {
+    isLoggedIn: (state) => !!state.token,
+    isAdmin: (state) => state.role === 'admin',
+  },
+  
+  actions: {
+    // 登录
+    async login(userData) {
+      try {
+        const response = await userService.login(userData)
+        
+        this.token = response.token
+        this.role = response.user.role
+        this.userInfo = response.user
+        
+        // 存储到本地
+        localStorage.setItem('token', this.token)
+        localStorage.setItem('userRole', this.role)
+        localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
+        
+        return { role: this.role, success: true }
+      } catch (error) {
+        console.error('登录失败:', error)
+        throw error
+      }
+    },
+    
+    // 注册
+    async register(userData) {
+      try {
+        const response = await userService.register(userData)
+        return response
+      } catch (error) {
+        console.error('注册失败:', error)
+        throw error
+      }
+    },
+    
+    // 更新用户信息
+    async updateUserInfo(data) {
+      try {
+        const response = await userService.updateUserInfo(data)
+        this.userInfo = { ...this.userInfo, ...response }
+        localStorage.setItem('userInfo', JSON.stringify(this.userInfo))
+        return this.userInfo
+      } catch (error) {
+        console.error('更新用户信息失败:', error)
+        throw error
+      }
+    },
+    
+    // 退出登录
+    async logout() {
+      try {
+        await userService.logout()
+        
+        this.token = ''
+        this.userInfo = null
+        this.role = ''
+        
+        localStorage.removeItem('token')
+        localStorage.removeItem('userRole')
+        localStorage.removeItem('userInfo')
+        
+        return { success: true }
+      } catch (error) {
+        console.error('退出登录失败:', error)
+        // 即使API调用失败，也清除本地状态
+        this.token = ''
+        this.userInfo = null
+        this.role = ''
+        localStorage.removeItem('token')
+        localStorage.removeItem('userRole')
+        localStorage.removeItem('userInfo')
+      }
+    }
+  }
+})
+```
+
+### 2. 修改log.js
+
+将模拟数据替换为真实API调用：
+
+```javascript
+import { defineStore } from 'pinia'
+import { logService } from '../services/logService'
+
+export const useLogStore = defineStore('log', {
+  state: () => ({
+    logs: [],
+    currentLog: null,
+    loading: false,
+    totalLogs: 0,
+    readingTime: 0,
+  }),
+  
+  getters: {
+    recentLogs: (state) => {
+      return [...state.logs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3)
+    },
+  },
+  
+  actions: {
+    // 获取日志列表
+    async fetchLogs(params = {}) {
+      this.loading = true
+      try {
+        const response = await logService.getLogs(params)
+        
+        this.logs = response.logs
+        this.totalLogs = response.total
+        
+        // 计算总阅读时间
+        this.readingTime = this.logs.reduce((sum, log) => sum + log.duration, 0)
+        
+        return response
+      } catch (error) {
+        console.error('获取日志列表失败:', error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 获取日志详情
+    async fetchLogDetail(id) {
+      this.loading = true
+      try {
+        const log = await logService.getLogDetail(id)
+        this.currentLog = log
+        return log
+      } catch (error) {
+        console.error('获取日志详情失败:', error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 创建日志
+    async createLog(logData) {
+      this.loading = true
+      try {
+        const newLog = await logService.createLog(logData)
+        this.logs.unshift(newLog)
+        return newLog
+      } catch (error) {
+        console.error('创建日志失败:', error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 更新日志
+    async updateLog(id, logData) {
+      this.loading = true
+      try {
+        const updatedLog = await logService.updateLog(id, logData)
+        
+        // 更新本地数据
+        const index = this.logs.findIndex(l => l.id == id)
+        if (index !== -1) {
+          this.logs[index] = updatedLog
+        }
+        
+        if (this.currentLog && this.currentLog.id == id) {
+          this.currentLog = updatedLog
+        }
+        
+        return updatedLog
+      } catch (error) {
+        console.error('更新日志失败:', error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 删除日志
+    async deleteLog(id) {
+      this.loading = true
+      try {
+        await logService.deleteLog(id)
+        
+        // 更新本地数据
+        this.logs = this.logs.filter(log => log.id != id)
+        
+        if (this.currentLog && this.currentLog.id == id) {
+          this.currentLog = null
+        }
+        
+        return { success: true }
+      } catch (error) {
+        console.error('删除日志失败:', error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    }
+  }
+})
+```
+
+## 四、错误处理与加载状态
+
+### 1. 统一错误处理组件
+
+创建 `src/components/ErrorMessage.vue` 文件：
+
+```vue
+<template>
+  <div v-if="error" class="error-message">
+    <el-alert
+      :title="error.title || '操作失败'"
+      :description="error.message"
+      type="error"
+      show-icon
+      @close="onClose"
+    />
+  </div>
+</template>
+
+<script setup>
+import { defineProps, defineEmits } from 'vue'
+
+const props = defineProps({
+  error: Object
+})
+
+const emit = defineEmits(['close'])
+
+const onClose = () => {
+  emit('close')
+}
+</script>
+```
+
+### 2. 在视图组件中处理加载状态和错误
+
+在各个视图组件中，需要添加加载状态和错误处理：
+
+```vue
+<template>
+  <div>
+    <!-- 错误提示 -->
+    <ErrorMessage 
+      v-if="error" 
+      :error="error" 
+      @close="error = null" 
+    />
+    
+    <!-- 加载状态 -->
+    <el-skeleton :rows="3" animated v-if="loading" />
+    
+    <!-- 正常内容 -->
+    <div v-else>
+      <!-- 组件内容 -->
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useLogStore } from '../store/log'
+import ErrorMessage from '../components/ErrorMessage.vue'
+
+const logStore = useLogStore()
+const loading = ref(false)
+const error = ref(null)
+
+const fetchData = async () => {
+  loading.value = true
+  try {
+    await logStore.fetchLogs()
+  } catch (e) {
+    error.value = {
+      title: '获取数据失败',
+      message: e.response?.data?.message || e.message || '请稍后重试'
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 页面加载时获取数据
+fetchData()
+</script>
+```
+
+## 五、数据格式转换
+
+在与后端对接时，前端接收到的数据格式可能需要转换才能适用于界面显示。建议在Service层或Store层进行数据转换。
+
+### 1. 日期格式化
+
+例如，后端返回的日期可能是ISO格式，但前端需要显示为更友好的格式：
+
+```javascript
+// 在store中处理日期格式
+import { format } from 'date-fns'
+
+// 在获取数据后进行格式化
+const formattedLogs = response.logs.map(log => ({
+  ...log,
+  formattedDate: format(new Date(log.date), 'yyyy-MM-dd')
+}))
+```
+
+### 2. 数据映射转换
+
+如果后端返回的字段名称与前端需要的不一致，需要进行映射：
+
+```javascript
+// 字段映射转换
+const transformedLog = {
+  id: backendLog.log_id,
+  title: backendLog.book_title,
+  author: backendLog.author_name,
+  date: backendLog.reading_date,
+  duration: backendLog.duration_minutes,
+  content: backendLog.notes,
+  status: backendLog.approval_status
+}
+```
+
+## 六、接口规范与文档
+
+### 1. 接口约定
+
+与后端团队商定接口规范，包括：
+
+- **URL路径**：例如`/api/logs`、`/api/users`等
+- **请求方法**：GET（查询）、POST（创建）、PUT（更新）、DELETE（删除）
+- **请求参数**：包括URL参数、查询参数、请求体参数
+- **响应格式**：统一的JSON格式，包括状态码、数据、错误信息等
+- **错误处理**：统一的错误返回格式
+
+### 2. 常见接口格式
+
+**成功响应格式**：
+```json
+{
+  "success": true,
+  "data": {
+    // 具体数据
+  },
+  "message": "操作成功"
+}
+```
+
+**错误响应格式**：
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "错误详情描述"
+  }
+}
+```
+
+### 3. 接口文档工具
+
+建议使用Swagger、Postman或Apifox等工具来管理和共享API文档。
+
+## 七、前后端联调流程
+
+### 1. 联调步骤
+
+1. **启动后端服务**：确保后端API服务正常运行
+2. **配置前端环境**：在.env文件中指向正确的后端API地址
+3. **开发模式启动前端**：使用`npm run dev`启动前端
+4. **功能测试**：逐个功能点进行测试
+5. **错误排查**：使用浏览器开发者工具的Network和Console面板定位问题
+
+### 2. 常见问题与解决方案
+
+- **跨域问题(CORS)**：
+  - 前端临时解决：在vite.config.js中配置代理
+  ```javascript
+  export default {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true
+        }
+      }
+    }
+  }
+  ```
+  - 后端解决：添加CORS头部
+
+- **Token验证问题**：
+  - 检查Token格式是否符合后端要求
+  - 确认Token是否过期
+  - 验证请求头中的Authorization格式
+
+- **数据格式不匹配**：
+  - 使用console.log检查发送的数据和接收的数据
+  - 在请求拦截器中格式化数据
+  - 在响应拦截器中转换数据
+
+## 八、后端API期望格式
+
+以下是前端期望的主要API格式和路径：
+
+### 1. 用户认证
+
+- **登录**：`POST /api/auth/login`
+  ```json
+  // 请求体
+  {
+    "email": "user@example.com",
+    "password": "password123"
+  }
+  
+  // 响应
+  {
+    "success": true,
+    "data": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "user": {
+        "id": 1,
+        "email": "user@example.com",
+        "role": "user",
+        "avatar": "https://example.com/avatar.jpg"
+      }
+    }
+  }
+  ```
+
+- **注册**：`POST /api/auth/register`
+  ```json
+  // 请求体
+  {
+    "email": "newuser@example.com",
+    "password": "newpassword123",
+    "name": "New User"
+  }
+  
+  // 响应
+  {
+    "success": true,
+    "message": "注册成功，请验证邮箱"
+  }
+  ```
+
+### 2. 阅读日志
+
+- **获取日志列表**：`GET /api/logs?page=1&limit=10&status=approved`
+  ```json
+  // 响应
+  {
+    "success": true,
+    "data": {
+      "logs": [
+        {
+          "id": 1,
+          "title": "书名",
+          "author": "作者",
+          "date": "2023-05-15",
+          "duration": 60,
+          "content": "阅读笔记内容",
+          "status": "approved"
+        },
+        // 更多日志...
+      ],
+      "total": 100,
+      "page": 1,
+      "limit": 10
+    }
+  }
+  ```
+
+- **获取日志详情**：`GET /api/logs/:id`
+  ```json
+  // 响应
+  {
+    "success": true,
+    "data": {
+      "id": 1,
+      "title": "书名",
+      "author": "作者",
+      "date": "2023-05-15",
+      "duration": 60,
+      "content": "详细的阅读笔记内容...",
+      "status": "approved",
+      "tags": ["文学", "小说"],
+      "mood": 4,
+      "created_at": "2023-05-15T10:30:00Z",
+      "updated_at": "2023-05-16T08:15:00Z"
+    }
+  }
+  ```
+
+## 九、部署与环境配置
+
+### 1. 环境变量配置
+
+创建不同环境的配置文件：
+- `.env.development`：开发环境配置
+- `.env.production`：生产环境配置
+
+内容示例：
+```
+# .env.development
+VITE_API_BASE_URL=http://localhost:3000/api
+
+# .env.production
+VITE_API_BASE_URL=https://api.yourdomain.com/api
+```
+
+### 2. 构建与部署
+
+- **构建生产版本**：
+```bash
+npm run build
+```
+
+- **部署说明**：
+  - 前端构建产物在`dist`目录
+  - 可部署到静态服务器、CDN或云服务
+  - 需配置服务器支持前端路由（所有请求重定向到index.html）
+
+## 十、总结
+
+1. **前后端分离的优势**：
+   - 前端与后端可以独立开发和部署
+   - 提高开发效率和代码维护性
+   - 更好的用户体验（前端可以处理加载状态和错误）
+
+2. **对接流程关键点**：
+   - 创建API服务层统一管理请求
+   - 修改Store中的模拟数据为真实API调用
+   - 实现请求拦截器处理认证
+   - 处理响应数据格式转换
+   - 优化错误处理和加载状态
+
+3. **持续优化建议**：
+   - 实现请求缓存减少重复请求
+   - 添加请求取消功能提升用户体验
+   - 实现断网状态下的数据持久化
+   - 考虑添加WebSocket实现实时通知 

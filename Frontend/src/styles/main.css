@@ -1,0 +1,232 @@
+:root {
+  /* 颜色变量 */
+  --primary-color: #4A90E2;
+  --secondary-color: #42B983;
+  --danger-color: #F56C6C;
+  --warning-color: #F5A623;
+  --success-color: #67C23A;
+  --info-color: #909399;
+  
+  --background-color: #F8F9FA;
+  --card-background: #FFFFFF;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-light: #999999;
+  --border-color: #EBEEF5;
+  
+  /* 尺寸变量 */
+  --border-radius: 4px;
+  --card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* 全局基础样式 */
+body {
+  font-family: 'Inter', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 布局容器 */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* 卡片样式 */
+.card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
+  padding: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* 自定义 Element Plus 样式 */
+.el-button--primary {
+  background-color: var(--primary-color);
+}
+
+.el-pagination {
+  margin-top: 20px;
+  text-align: right;
+}
+
+/* 辅助类 */
+.text-primary { color: var(--primary-color); }
+.text-secondary { color: var(--secondary-color); }
+.text-danger { color: var(--danger-color); }
+.text-warning { color: var(--warning-color); }
+.text-success { color: var(--success-color); }
+.text-info { color: var(--info-color); }
+
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+.mb-5 { margin-bottom: 3rem; }
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-5 { margin-top: 3rem; }
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 10px;
+  }
+  
+  .card {
+    padding: 15px;
+  }
+  
+  .page-title {
+    font-size: 20px;
+  }
+}
+
+/* 动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 全局覆盖Element Plus过滤器下拉菜单样式 */
+.el-dropdown-menu {
+  width: 400px !important;
+  padding: 20px !important;
+  border: 1px solid #DCDFE6 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  font-size: 14px !important;
+}
+
+/* 调整下拉菜单项样式 */
+.el-dropdown-menu__item {
+  padding: 0 !important;
+  height: auto !important;
+  line-height: normal !important;
+}
+
+.el-dropdown-menu__item:hover {
+  background-color: transparent !important;
+}
+
+/* 确保选择器和日期选择器宽度正确 */
+.filter-dropdown-section .el-select {
+  width: 100% !important;
+}
+
+.filter-dropdown-section .el-date-editor--daterange {
+  width: 100% !important;
+}
+
+/* 过滤器标题样式 */
+.filter-dropdown-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #409EFF !important;
+  margin-bottom: 20px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid #EBEEF5 !important;
+}
+
+/* 过滤器区域样式 */
+.filter-dropdown-section {
+  margin-bottom: 20px !important;
+  width: 100% !important;
+}
+
+/* 过滤器标签样式 */
+.filter-dropdown-label {
+  font-size: 14px !important;
+  margin-bottom: 8px !important;
+  color: #303133 !important;
+  font-weight: 500 !important;
+  display: block !important;
+}
+
+/* 按钮区域样式 */
+.filter-dropdown-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  margin-top: 24px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid #EBEEF5 !important;
+  gap: 12px !important;
+}
+
+/* 按钮样式 */
+.filter-dropdown-actions .el-button {
+  padding: 8px 20px !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+  .el-dropdown-menu {
+    width: 320px !important;
+    padding: 16px !important;
+  }
+  
+  .filter-dropdown-title {
+    font-size: 16px !important;
+  }
+  
+  .filter-dropdown-label {
+    font-size: 13px !important;
+  }
+} 

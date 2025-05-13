@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.tablego.project.springboot.mapper.UsersMapper">
+
+    <select id="recent7days" resultType="cn.tablego.project.springboot.model.PlatVo">
+        WITH RECURSIVE DateSeries AS (
+        SELECT CURDATE() - INTERVAL 6 DAY AS date
+        UNION ALL
+        SELECT date + INTERVAL 1 DAY
+        FROM DateSeries
+        WHERE date &lt; CURDATE()
+        )
+        SELECT
+        CONCAT(MONTH(ds.date), '/', DAY(ds.date)) AS date,
+        COUNT(u.user_id) AS userCount
+        FROM
+        DateSeries ds
+        LEFT JOIN
+        users u
+        ON
+        DATE(u.created_at) = ds.date
+        GROUP BY
+        ds.date
+        ORDER BY
+        ds.date ASC;
+    </select>
+</mapper>
